@@ -8,7 +8,9 @@
         public string? Password { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-        // Navigation properties can be added here if needed
-        // public ICollection<EnergyConsumption> EnergyConsumptions { get; set; }
+        
+        // Navigation properties
+        public ICollection<IoTDevice> IoTDevices { get; set; } = new List<IoTDevice>();
+        public ICollection<EnergyConsumption> EnergyConsumptions { get; set; } = new List<EnergyConsumption>();
     }
 }
