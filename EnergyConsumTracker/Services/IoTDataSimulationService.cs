@@ -5,7 +5,7 @@ namespace EnergyConsumTracker.Services
 {
     public class IoTDataSimulationService : IHostedService, IDisposable
     {
-        private Timer? _timer;
+      //  private Timer? _timer;
         private readonly ILogger<IoTDataSimulationService> _logger;
         private readonly Random _random = new Random();
         private readonly List<IoTDevice> _devices = new List<IoTDevice>();

@@ -169,7 +169,8 @@ namespace EnergyConsumTracker.Services
             {
                 var device = new IoTDevice
                 {
-                    Id = lineNumber, // Use line number as temporary ID
+                    Id = lineNumber, // Use line number as temporary ID   test
+                    Name = columns[0]?.Trim() ?? "Unknown Device",
                     DeviceId = columns[1]?.Trim() ?? "",
                     DeviceType = columns[2]?.Trim() ?? "",
                     Location = columns[3]?.Trim() ?? "",

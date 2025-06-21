@@ -1,0 +1,256 @@
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-tachometer-alt me-2"></i>
+                Energy Consumption Dashboard
+            </h1>
+        </div>
+    </div>
+
+    <!-- Analytics Cards -->
+    <div class="row mb-4" id="analyticsCards">
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="totalDevices">-</div>
+                <div class="metric-label">
+                    <i class="fas fa-microchip me-1"></i>
+                    Total Devices
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="onlineDevices">-</div>
+                <div class="metric-label">
+                    <i class="fas fa-wifi me-1"></i>
+                    Online Devices
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="totalPower">-</div>
+                <div class="metric-label">
+                    <i class="fas fa-bolt me-1"></i>
+                    Total Power (W)
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="totalEnergy">-</div>
+                <div class="metric-label">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Total Energy (kWh)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Real-time Device Status -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Real-time Device Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="loading-spinner" id="loadingSpinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="deviceTable">
+                            <thead>
+                                <tr>
+                                    <th>Device ID</th>
+                                    <th>Type</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>Connectivity</th>
+                                    <th>Power (W)</th>
+                                    <th>Energy (kWh)</th>
+                                    <th>Last Update</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deviceTableBody">
+                                <!-- Device data will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Power Consumption Chart -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-area me-2"></i>
+                        Power Consumption Trend
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="powerChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let powerChart;
+        let updateInterval;
+
+        $(document).ready(function() {
+            initializeChart();
+            loadData();
+            
+            // Update data every 5 seconds
+            updateInterval = setInterval(loadData, 5000);
+        });
+
+        function initializeChart() {
+            const ctx = document.getElementById('powerChart').getContext('2d');
+            powerChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Total Power Consumption (W)',
+                        data: [],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Power (W)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        }
+
+        function loadData() {
+            // Show loading spinner
+            $('#loadingSpinner').show();
+            
+            // Load analytics
+            $.get('/Home/GetAnalytics', function(response) {
+                if (response.success) {
+                    updateAnalytics(response.data);
+                }
+            });
+
+            // Load device data
+            $.get('/Home/GetRealTimeData', function(response) {
+                if (response.success) {
+                    updateDeviceTable(response.data);
+                    updatePowerChart(response.data);
+                }
+                $('#loadingSpinner').hide();
+            }).fail(function() {
+                $('#loadingSpinner').hide();
+                console.error('Failed to load data');
+            });
+        }
+
+        function updateAnalytics(data) {
+            $('#totalDevices').text(data.TotalDevices);
+            $('#onlineDevices').text(data.OnlineDevices);
+            $('#totalPower').text(data.TotalPowerConsumption.toFixed(2));
+            $('#totalEnergy').text(data.TotalEnergyConsumption.toFixed(2));
+        }
+
+        function updateDeviceTable(devices) {
+            const tbody = $('#deviceTableBody');
+            tbody.empty();
+
+            devices.forEach(device => {
+                const statusClass = device.Status === 'ON' ? 'status-on' : 'status-off';
+                const connectivityClass = device.Connectivity === 'Online' ? 'status-online' : 'status-offline';
+                const powerIndicatorClass = device.Status === 'ON' ? 'power-active' : 'power-inactive';
+                
+                const row = `
+                    <tr>
+                        <td><strong>${device.DeviceId}</strong></td>
+                        <td>${device.DeviceType}</td>
+                        <td>${device.Location}</td>
+                        <td>
+                            <span class="power-indicator ${powerIndicatorClass}"></span>
+                            <span class="${statusClass}">${device.Status}</span>
+                        </td>
+                        <td>
+                            <i class="fas fa-circle ${connectivityClass} me-1"></i>
+                            <span class="${connectivityClass}">${device.Connectivity}</span>
+                        </td>
+                        <td><strong>${device.ActualPowerW.toFixed(2)}</strong></td>
+                        <td>${device.CumulativeEnergyKwh.toFixed(3)}</td>
+                        <td>${new Date(device.Timestamp).toLocaleTimeString()}</td>
+                    </tr>
+                `;
+                tbody.append(row);
+            });
+        }
+
+        function updatePowerChart(devices) {
+            const totalPower = devices.reduce((sum, device) => sum + device.ActualPowerW, 0);
+            const currentTime = new Date().toLocaleTimeString();
+            
+            // Add new data point
+            powerChart.data.labels.push(currentTime);
+            powerChart.data.datasets[0].data.push(totalPower);
+            
+            // Keep only last 20 data points
+            if (powerChart.data.labels.length > 20) {
+                powerChart.data.labels.shift();
+                powerChart.data.datasets[0].data.shift();
+            }
+            
+            powerChart.update('none');
+        }
+
+        // Cleanup on page unload
+        $(window).on('beforeunload', function() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+    </script>
+} 

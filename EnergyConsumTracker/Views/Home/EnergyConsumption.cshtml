@@ -1,0 +1,164 @@
+@{
+    ViewData["Title"] = "Real-Time Energy Monitoring";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-bolt me-2"></i>
+                Real-Time Energy Consumption Monitoring
+            </h1>
+        </div>
+    </div>
+
+    <!-- Real-time Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="activeDevices">-</div>
+                <div class="metric-label">Active Devices</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="currentPower">-</div>
+                <div class="metric-label">Current Power (W)</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="totalEnergy">-</div>
+                <div class="metric-label">Total Energy (kWh)</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="updateTime">-</div>
+                <div class="metric-label">Last Update</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Device Grid -->
+    <div class="row" id="deviceGrid">
+        <!-- Device cards will be populated here -->
+    </div>
+
+    <!-- Power Chart -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Power Consumption Over Time</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="powerChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let powerChart;
+        let updateInterval;
+
+        $(document).ready(function() {
+            initializeChart();
+            loadRealTimeData();
+            updateInterval = setInterval(loadRealTimeData, 3000);
+        });
+
+        function initializeChart() {
+            const ctx = document.getElementById('powerChart').getContext('2d');
+            powerChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Total Power (W)',
+                        data: [],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function loadRealTimeData() {
+            $.get('/Home/GetRealTimeData', function(response) {
+                if (response.success) {
+                    updateMetrics(response.data);
+                    updateDeviceGrid(response.data);
+                    updateChart(response.data);
+                }
+            });
+        }
+
+        function updateMetrics(devices) {
+            const activeDevices = devices.filter(d => d.Status === 'ON').length;
+            const currentPower = devices.reduce((sum, d) => sum + d.ActualPowerW, 0);
+            const totalEnergy = devices.reduce((sum, d) => sum + d.CumulativeEnergyKwh, 0);
+
+            $('#activeDevices').text(activeDevices);
+            $('#currentPower').text(currentPower.toFixed(2));
+            $('#totalEnergy').text(totalEnergy.toFixed(3));
+            $('#updateTime').text(new Date().toLocaleTimeString());
+        }
+
+        function updateDeviceGrid(devices) {
+            const grid = $('#deviceGrid');
+            grid.empty();
+
+            devices.forEach(device => {
+                const statusClass = device.Status === 'ON' ? 'status-on' : 'status-off';
+                const deviceCard = `
+                    <div class="col-md-4 col-lg-3 mb-3">
+                        <div class="device-card">
+                            <h6>${device.DeviceId}</h6>
+                            <p>${device.DeviceType} - ${device.Location}</p>
+                            <div class="row">
+                                <div class="col-6">
+                                    <span class="${statusClass}">${device.Status}</span>
+                                </div>
+                                <div class="col-6">
+                                    <strong>${device.ActualPowerW.toFixed(1)}W</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.append(deviceCard);
+            });
+        }
+
+        function updateChart(devices) {
+            const currentPower = devices.reduce((sum, d) => sum + d.ActualPowerW, 0);
+            const currentTime = new Date().toLocaleTimeString();
+            
+            powerChart.data.labels.push(currentTime);
+            powerChart.data.datasets[0].data.push(currentPower);
+            
+            if (powerChart.data.labels.length > 20) {
+                powerChart.data.labels.shift();
+                powerChart.data.datasets[0].data.shift();
+            }
+            
+            powerChart.update('none');
+        }
+
+        $(window).on('beforeunload', function() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+    </script>
+} 
