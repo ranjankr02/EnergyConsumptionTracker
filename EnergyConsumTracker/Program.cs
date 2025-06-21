@@ -1,3 +1,5 @@
+using EnergyConsumTracker.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -6,6 +8,13 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Register IoT Data Simulation Service
+builder.Services.AddHostedService<IoTDataSimulationService>();
+builder.Services.AddSingleton<IoTDataSimulationService>();
+
+// Register CSV Reader Service
+builder.Services.AddScoped<ICsvReaderService, CsvReaderService>();
 
 var app = builder.Build();
 
